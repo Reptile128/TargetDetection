@@ -96,7 +96,7 @@ def clean_punctuation(df):
     Folgende Schritte werden durchgeführt:
     - Entfernt Enter, Tab und andere Whitespace-Zeichen, ersetzt durch Leerzeichen.
     - Entfernt Klammern '()' inklusive Inhalt. Bei ungeschlossenen Klammern wird bis zum nächsten Satzzeichen entfernt.
-    - Entfernt doppelte Bindestriche '--'.
+    - Entfernt alle Bindestriche '-'.
     - Entfernt doppelte Satzzeichen.
     - Ersetzt Ausrufezeichen und Fragezeichen durch Punkt.
     - Entfernt alle anderen Satzzeichen außer Komma und Punkt.
@@ -106,60 +106,43 @@ def clean_punctuation(df):
     :return: Aktualisierter DataFrame
     """
 
-    def clean_punctuation(df):
-        """
-        Bereinigt den Text durch Entfernen unerwünschter Zeichen und Strukturen.
+    def clean_text(text):
+        # Entferne Enter, Tab und andere Whitespace-Zeichen, ersetze durch Leerzeichen
+        text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
 
-        Folgende Schritte werden durchgeführt:
-        - Entfernt Enter, Tab und andere Whitespace-Zeichen, ersetzt durch Leerzeichen.
-        - Entfernt Klammern '()' inklusive Inhalt. Bei ungeschlossenen Klammern wird bis zum nächsten Satzzeichen entfernt.
-        - Entfernt alle Bindestriche '-'.
-        - Entfernt doppelte Satzzeichen.
-        - Ersetzt Ausrufezeichen und Fragezeichen durch Punkt.
-        - Entfernt alle anderen Satzzeichen außer Komma und Punkt.
-        - Entfernt zusätzliche Leerzeichen.
-
-        :param df: DataFrame mit der 'text'-Spalte
-        :return: Aktualisierter DataFrame
-        """
-
-        def clean_text(text):
-            # Entferne Enter, Tab und andere Whitespace-Zeichen, ersetze durch Leerzeichen
-            text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-
-            # Entferne Klammern und ihren Inhalt
-            def remove_parentheses(text):
-                # Entfernt Inhalte innerhalb geschlossener Klammern
-                text = re.sub(r'\(.*?\)', '', text)
-                # Entfernt Inhalte ab ungeschlossener Klammer bis zum nächsten Satzzeichen
-                text = re.sub(r'\(.*?[.,]', '', text)
-                return text
-
-            text = remove_parentheses(text)
-
-            # Entferne alle Bindestriche '-'
-            text = text.replace('-', '')
-
-            # Entferne zusätzliche Leerzeichen
-            text = re.sub(r'\s+', ' ', text).strip()
-
-            # Entferne doppelte Satzzeichen
-            text = re.sub(r'([^\w\s])\1+', r'\1', text)
-
-            # Ersetze Ausrufezeichen und Fragezeichen durch Punkt
-            text = re.sub(r'[!?]', '.', text)
-
-            # Entferne alle anderen Satzzeichen außer ',' und '.'
-            text = re.sub(r'[^\w\s,\.]', '', text)
-
-            # Entferne zusätzliche Leerzeichen erneut
-            text = re.sub(r'\s+', ' ', text).strip()
-
+        # Entferne Klammern und ihren Inhalt
+        def remove_parentheses(text):
+            # Entfernt Inhalte innerhalb geschlossener Klammern
+            text = re.sub(r'\(.*?\)', '', text)
+            # Entfernt Inhalte ab ungeschlossener Klammer bis zum nächsten Satzzeichen
+            text = re.sub(r'\(.*?[.,]', '', text)
             return text
 
-        mask = df['predicted_label'] != 'public'
-        df.loc[mask, 'text'] = df.loc[mask, 'text'].apply(clean_text)
-        return df
+        text = remove_parentheses(text)
+
+        # Entferne alle Bindestriche '-'
+        text = text.replace('-', '')
+
+        # Entferne zusätzliche Leerzeichen
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        # Entferne doppelte Satzzeichen
+        text = re.sub(r'([^\w\s])\1+', r'\1', text)
+
+        # Ersetze Ausrufezeichen und Fragezeichen durch Punkt
+        text = re.sub(r'[!?]', '.', text)
+
+        # Entferne alle anderen Satzzeichen außer ',' und '.'
+        text = re.sub(r'[^\w\s,\.]', '', text)
+
+        # Entferne zusätzliche Leerzeichen erneut
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        return text
+
+    mask = df['predicted_label'] != 'public'
+    df.loc[mask, 'text'] = df.loc[mask, 'text'].apply(clean_text)
+    return df
 
 
 def translate_tweets(df):
@@ -256,7 +239,6 @@ def stop_word_removal(df):
     mask = df['predicted_label'] != 'public'
     df.loc[mask, 'text'] = df.loc[mask, 'text'].apply(remove_stop_words)
     return df
-
 
 def tokenize_and_POS_tweets(df):
     """

@@ -7,12 +7,12 @@ from Vorverarbeitung import (
     translate_tweets,
     correct_tweets,
     lemmatize_tweets,
-    stop_word_removal,
     tokenize_and_POS_tweets,
     clean_punctuation)
+from Stop_Word_Removal import stop_word_removal
 
 Pfad_zur_Originaldatei = "Data/Tweets_Original.csv"
-Pfad_zur_verarbeiteten_Datei = "Data/Tweets_edited.csv"
+Pfad_zur_verarbeiteten_Datei = "Data/Tweets_edited_wo_translation_correction_stopwordremoval.csv"
 
 
 def measure_time(func, *args, **kwargs):
@@ -39,14 +39,14 @@ def main():
     df = measure_time(replace_links, df)
 
     # Vorverarbeitungsschritte
-    df = measure_time(detect_public_tweets, df)
+    df = measure_time(detect_empty_tweets, df)
     df = measure_time(process_hashtags_to_sentence, df)
-    df = measure_time(translate_tweets, df)
-    df = measure_time(correct_tweets, df)
+    # df = measure_time(translate_tweets, df)
+    # df = measure_time(correct_tweets, df)
     df = measure_time(clean_punctuation, df)
     df = measure_time(lemmatize_tweets, df)
-    df = measure_time(stop_word_removal, df)
-    df = measure_time(tokenize_tweets, df)
+    # df = measure_time(stop_word_removal, df)
+    df = measure_time(tokenize_and_POS_tweets, df)
 
     # Konvertiere die Listen in Strings für das Speichern
     df['tokens'] = df['tokens'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')
@@ -58,9 +58,7 @@ def main():
     print(f"Die gesamte Vorverarbeitung dauerte {total_time:.2f} Sekunden.")
 
     # Speichern der verarbeiteten Daten mit Anführungszeichen und allen Spalten
-    output_file = 'Data/Processed_Data.csv'
-    df.to_csv(output_file, index=False, sep=';', quotechar='"', quoting=csv.QUOTE_ALL)
-    print(f"Die verarbeiteten Daten wurden in '{output_file}' gespeichert.")
+    save_processed_data(df, Pfad_zur_verarbeiteten_Datei)
 
 
 if __name__ == "__main__":

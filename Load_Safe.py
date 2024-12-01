@@ -1,4 +1,5 @@
 import pandas as pd
+import csv
 
 
 # Lädt die Daten als DataFrame
@@ -90,7 +91,7 @@ def save_processed_data(df, file_path):
         df['pos_tags'] = df['pos_tags'].apply(lambda x: str(x) if isinstance(x, list) else x)
 
         # Speichere das DataFrame
-        df.to_csv(file_path, index=False, sep=';', quotechar='"')
+        df.to_csv(file_path, index=False, sep=';', quotechar='"', quoting=csv.QUOTE_ALL)
         print(f"Daten erfolgreich in {file_path} gespeichert.")
     except Exception as e:
         print(f"Fehler beim Speichern der Datei {file_path}: {e}")
