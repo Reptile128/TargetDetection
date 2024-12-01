@@ -1,6 +1,6 @@
 import re
 
-import Read
+import Load_Safe
 
 
 def LinkEntfernung(liste):

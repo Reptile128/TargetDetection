@@ -1,0 +1,7 @@
+Zu machen:
+
+1. Die Detection von translate_tweets erkennt aktuell zu viele Tweets. Habe schon versucht 2 Modelle gleichzeitig
+    zu verwenden aber das hat gefühlt nicht wahnsinnig viel geholfen.
+    Hier müssen wir mal reden, was wir machen können, da es extrem verlangsamt
+2. correct_tweets fügt oft "-" bei der Korrektur ein, wo es einen Fehler hat. Hier muss eine Korrektur erfolgen
+3. stop_word_removal: Ist viel zu aggressiv. Hier muss es unbedingt noch angepasst werden.
