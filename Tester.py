@@ -1,7 +1,7 @@
 import LinkDetection
 import Read
 
-liste = Read.lesen("C:\\Users\\tomli\Downloads\\tar.csv")
+liste = Read.lesen("")
 
 for i in range(1000):
     print(liste[i][1])
