@@ -7,3 +7,16 @@ Zu machen:
 3. stop_word_removal: Ist viel zu aggressiv. Hier muss es unbedingt noch angepasst werden.
 4. Aktuell wird das Komma durch "--" ersetzt. Ich weiß gerade noch nicht ganz warum. Werde diesbzgl mal schauen.
 5. Linkerkennung muss noch an das aktuelle Datenformat angepasst werden. Außerdem sollte noch ein {Link} eingefügt werden anstatt nichts.
+
+
+Wie es funktioniert:
+1. Schaue im Terminal, ob venv steht. Falls nicht, dann aktiviere es.
+    Windows: venv\Scripts\activate
+    Linux: source venv/Scripts/activate
+2. Probiere das Skript auszuführen. Falls ein Fehler kommt:
+    Führe
+            pip install -r requirements.txt
+            python -m spacy download de_core_news_sm
+    in der Konsole aus.
+
+3. Jetzt müsste das Programm laufen
