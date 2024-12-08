@@ -42,7 +42,7 @@ def main():
     df = measure_time(detect_empty_tweets, df)
     df = measure_time(process_hashtags_to_sentence, df)
     # df = measure_time(translate_tweets, df)
-    # df = measure_time(correct_tweets, df)
+    df = measure_time(correct_tweets, df)
     df = measure_time(clean_punctuation, df)
     df = measure_time(lemmatize_tweets, df)
     # df = measure_time(stop_word_removal, df)
@@ -63,3 +63,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

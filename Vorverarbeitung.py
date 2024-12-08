@@ -161,7 +161,7 @@ def translate_tweets(df):
             else:
                 print(f"Sprache: {sprache}\n{tweet}")
                 return GoogleTranslator(source='auto', target='de').translate(tweet)
-        except Error as e:
+        except Exception as e:
             print(f"Fehler: {e}")
             return tweet
 

@@ -6,7 +6,6 @@ Zu machen:
 2. correct_tweets fügt oft "-" bei der Korrektur ein, wo es einen Fehler hat. Hier muss eine Korrektur erfolgen
 3. stop_word_removal: Ist viel zu aggressiv. Hier muss es unbedingt noch angepasst werden.
 4. Aktuell wird das Komma durch "--" ersetzt. Ich weiß gerade noch nicht ganz warum. Werde diesbzgl mal schauen.
-5. Linkerkennung muss noch an das aktuelle Datenformat angepasst werden. Außerdem sollte noch ein {Link} eingefügt werden anstatt nichts.
 
 
 Wie es funktioniert:
