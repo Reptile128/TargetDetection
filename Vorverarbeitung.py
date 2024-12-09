@@ -9,9 +9,12 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 import language_tool_python
 import spacy
+from spacy.lang.lex_attrs import word_shape
+from spellchecker import SpellChecker
 
 # Initialisiere die notwendigen Tools
 corrector = language_tool_python.LanguageTool('de')  # Rechtschreibkorrektur-Tool für Deutsch
+spell = SpellChecker(language="de")
 nlp = spacy.load("de_core_news_sm")  # Spacy-Modell für Deutsch
 
 def replace_links(df):
@@ -180,15 +183,14 @@ def correct_tweets(df):
     mask = df['predicted_label'] != 'public'
 
     def correct_and_filter(tweet):
-        matches = corrector.check(tweet)
-        filtered_matches = []
-        for match in matches:
-            # Überprüfe, ob die vorgeschlagenen Ersetzungen '--' enthalten
-            if '--' in match.replacements:
-                continue  # Überspringe diese Korrektur
-            filtered_matches.append(match)
-        corrected_tweet = language_tool_python.utils.correct(tweet, filtered_matches)
-        return corrected_tweet
+        words = tweet.split()  # Split the sentence into words
+        misspelled = spell.unknown(words)  # Find all misspelled words in one go
+        corrections = {word: spell.correction(word) for word in misspelled}  # Get corrections for all misspelled words
+
+        # Replace misspelled words with their corrections
+        corrected_words = [corrections[word] if word in corrections and corrections[word] is not None else word for word in words]
+        return ' '.join(corrected_words)
+
 
     df.loc[mask, 'text'] = df.loc[mask, 'text'].apply(correct_and_filter)
     return df
