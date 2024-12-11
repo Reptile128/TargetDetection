@@ -5,6 +5,8 @@ from deep_translator import GoogleTranslator
 import spacy
 import csv
 
+from spellchecker import SpellChecker
+
 # Set seed for langdetect to ensure consistency
 DetectorFactory.seed = 0
 
@@ -85,6 +87,7 @@ def preprocess_text(text):
 
     return text
 
+
 def detect_and_translate(text):
     """
     Erkennt die Sprache des Textes. Wenn es nicht Deutsch ist, übersetzt es ins Deutsche.
@@ -105,7 +108,16 @@ def detect_and_translate(text):
             print(f"Übersetzungsfehler: {e}")
             return text  # Rückfall auf Originaltext, falls Übersetzung fehlschlägt
     else:
-        return text
+
+        spell = SpellChecker(language="de")
+
+        words = text.split()  # Split the sentence into words
+        misspelled = spell.unknown(words)  # Find all misspelled words in one go
+        corrections = {word: spell.correction(word) for word in misspelled}  # Get corrections for all misspelled words
+
+        # Replace misspelled words with their corrections
+        corrected_words = [corrections[word] if word in corrections and corrections[word] is not None else word for word in words]
+        return ' '.join(corrected_words)
 
 def remove_adjectives(text):
     """
