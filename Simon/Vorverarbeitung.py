@@ -37,7 +37,7 @@ def preprocess_text(text):
     # 2. Entferne Hashtags
     text = re.sub(r'#\w+', '', text)
 
-    detect_and_translate(text)
+    text = detect_and_translate(text)
 
     # 3. Ersetze ?! und ähnliche durch Punkt
     text = re.sub(r'[?!]+', '.', text)
@@ -49,7 +49,7 @@ def preprocess_text(text):
     def remove_within(text, open_char, close_char):
         open_esc = re.escape(open_char)
         close_esc = re.escape(close_char)
-        pattern = re.compile(rf'{open_esc}[^\{close_char}\.]*?(\{close_char}|\.)')
+        pattern = re.compile(r'{open_esc}[^\{close_char}\.]*?(\{close_char}|\.)')
         while True:
             match = pattern.search(text)
             if not match:
@@ -119,9 +119,9 @@ def main():
     print("Beginne mit der Vorverarbeitung der Beschreibungen...")
 
     try:
-        df = pd.read_csv('Data.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
+        df = pd.read_csv('Data/Tweets_Original.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
     except FileNotFoundError:
-        print("Die Datei 'Data.csv' wurde nicht gefunden.")
+        print("Die Datei wurde nicht gefunden.")
         return
     except Exception as e:
         print(f"Fehler beim Einlesen der Datei: {e}")
@@ -138,7 +138,7 @@ def main():
     print("Speichere vorverarbeitete Datei...")
     df_verarbeitet = df[['id', 'description', 'TAR']].rename(columns={'description': 'translated_description'})
     try:
-        df_verarbeitet.to_csv('D_verarbeitet.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
+        df_verarbeitet.to_csv('Data/D_verarbeitet.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
         print("D_verarbeitet.csv wurde erfolgreich gespeichert.")
     except Exception as e:
         print(f"Fehler beim Speichern von D_verarbeitet.csv: {e}")
@@ -147,7 +147,7 @@ def main():
     df_verarbeitet['description_oa'] = df_verarbeitet['translated_description'].progress_apply(remove_adjectives)
     df_verarbeitet_oa = df_verarbeitet[['id', 'description_oa', 'TAR']].rename(columns={'description_oa': 'description'})
     try:
-        df_verarbeitet_oa.to_csv('D_verarbeitet_oa.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
+        df_verarbeitet_oa.to_csv('Data/D_verarbeitet_oa.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
         print("D_verarbeitet_oa.csv wurde erfolgreich gespeichert.")
     except Exception as e:
         print(f"Fehler beim Speichern von D_verarbeitet_oa.csv: {e}")
