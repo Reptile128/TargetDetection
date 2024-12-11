@@ -12,7 +12,7 @@ from Vorverarbeitung import (
 from Stop_Word_Removal import stop_word_removal
 
 Pfad_zur_Originaldatei = "Data/Tweets_Original.csv"
-Pfad_zur_verarbeiteten_Datei = "Data/Tweets_Complete_Preprocessing.csv"
+Pfad_zur_verarbeiteten_Datei = "Data/test.csv"
 
 
 def measure_time(func, *args, **kwargs):
@@ -40,17 +40,17 @@ def main():
 
     # Vorverarbeitungsschritte
     df = measure_time(detect_empty_tweets, df)
-    df = measure_time(process_hashtags_to_sentence, df)
-    df = measure_time(translate_tweets, df)
-    df = measure_time(correct_tweets, df)
-    df = measure_time(clean_punctuation, df)
-    df = measure_time(lemmatize_tweets, df)
-    df = measure_time(stop_word_removal, df)
-    df = measure_time(tokenize_and_POS_tweets, df)
+    #df = measure_time(process_hashtags_to_sentence, df)
+    #df = measure_time(translate_tweets, df)
+    #df = measure_time(correct_tweets, df)
+    #df = measure_time(clean_punctuation, df)
+    #df = measure_time(lemmatize_tweets, df)
+    #df = measure_time(stop_word_removal, df)
+    #df = measure_time(tokenize_and_POS_tweets, df)
 
     # Konvertiere die Listen in Strings für das Speichern
-    df['tokens'] = df['tokens'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')
-    df['pos_tags'] = df['pos_tags'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')
+    #df['tokens'] = df['tokens'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')
+    #df['pos_tags'] = df['pos_tags'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')
 
     # Endzeitpunkt
     end_time = time.time()

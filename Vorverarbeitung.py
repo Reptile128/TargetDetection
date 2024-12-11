@@ -136,7 +136,7 @@ def clean_punctuation(df):
         text = re.sub(r'[!?]', '.', text)
 
         # Entferne alle anderen Satzzeichen außer ',' und '.'
-        text = re.sub(r'[^\w\s,\.]', '', text)
+        text = re.sub(r'[^\w\s\.,\[\]@]', '', text)
 
         # Entferne zusätzliche Leerzeichen erneut
         text = re.sub(r'\s+', ' ', text).strip()
