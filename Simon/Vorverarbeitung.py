@@ -136,7 +136,7 @@ def main():
     df['clean_description'] = df['description'].progress_apply(preprocess_text)
 
     print("Speichere vorverarbeitete Datei...")
-    df_verarbeitet = df[['id', 'description', 'TAR']].rename(columns={'description': 'translated_description'})
+    df_verarbeitet = df[['id', 'clean_description', 'TAR']].rename(columns={'clean_description': 'translated_description'})
     try:
         df_verarbeitet.to_csv('Data/D_verarbeitet.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
         print("D_verarbeitet.csv wurde erfolgreich gespeichert.")
