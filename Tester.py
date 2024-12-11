@@ -43,10 +43,10 @@ def main():
     #df = measure_time(process_hashtags_to_sentence, df)
     #df = measure_time(translate_tweets, df)
     #df = measure_time(correct_tweets, df)
-    #df = measure_time(clean_punctuation, df)
+    df = measure_time(clean_punctuation, df)
     #df = measure_time(lemmatize_tweets, df)
     #df = measure_time(stop_word_removal, df)
-    #df = measure_time(tokenize_and_POS_tweets, df)
+    df = measure_time(tokenize_and_POS_tweets, df)
 
     # Konvertiere die Listen in Strings für das Speichern
     #df['tokens'] = df['tokens'].apply(lambda x: ','.join(x) if isinstance(x, list) else '')

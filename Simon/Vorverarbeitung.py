@@ -4,12 +4,12 @@ from langdetect import detect, DetectorFactory, LangDetectException
 from deep_translator import GoogleTranslator
 import spacy
 import csv
-
 from spellchecker import SpellChecker
 
 # Set seed for langdetect to ensure consistency
 DetectorFactory.seed = 0
-
+#Initiere den Spellchecker
+spell = SpellChecker(language="de")
 # Lade das deutsche SpaCy-Modell
 try:
     nlp = spacy.load('de_core_news_sm')
@@ -36,12 +36,14 @@ def preprocess_text(text):
     # 2. Entferne Hashtags
     text = re.sub(r'#\w+', '', text)
 
+    detect_and_translate(text)
+
     # 3. Ersetze ?! und ähnliche durch Punkt
     text = re.sub(r'[?!]+', '.', text)
 
     # 4. Entferne alle anderen Satzzeichen außer Punkt
     # Ersetze alle Zeichen, die keine Wortzeichen, Leerzeichen oder Punkte sind, durch nichts
-    text = re.sub(r'[^\w\s\.]', '', text)
+    text = re.sub(r'[^\w\s\.,\[\]@]','', text)
 
     # 5. Entferne Inhalte innerhalb von "" oder ()
     # Falls keine schließende Klammer oder Anführungszeichen, entferne bis zum nächsten Punkt
@@ -109,8 +111,6 @@ def detect_and_translate(text):
             return text  # Rückfall auf Originaltext, falls Übersetzung fehlschlägt
     else:
 
-        spell = SpellChecker(language="de")
-
         words = text.split()  # Split the sentence into words
         misspelled = spell.unknown(words)  # Find all misspelled words in one go
         corrections = {word: spell.correction(word) for word in misspelled}  # Get corrections for all misspelled words
@@ -151,9 +151,6 @@ def main():
     print("Starte die Textvorverarbeitung...")
     df['clean_description'] = df['description'].apply(preprocess_text)
 
-    # 3. Sprache erkennen und ggf. übersetzen
-    print("Erkenne die Sprache und übersetze bei Bedarf...")
-    df['translated_description'] = df['clean_description'].apply(detect_and_translate)
 
     # 4. Speichere alles in D_verarbeitet.csv ab
     df_verarbeitet = df[['id', 'translated_description', 'TAR']].rename(columns={'translated_description': 'description'})
