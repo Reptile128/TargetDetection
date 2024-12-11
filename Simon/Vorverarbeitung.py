@@ -134,7 +134,7 @@ def main():
 
     # 1. Lies die Datei Data.csv ein
     try:
-        df = pd.read_csv('Data.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
+        df = pd.read_csv('Data/Tweets_Original.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
     except FileNotFoundError:
         print("Die Datei 'Data.csv' wurde nicht gefunden.")
         return
