@@ -5,10 +5,11 @@ from deep_translator import GoogleTranslator
 import spacy
 import csv
 from spellchecker import SpellChecker
+from tqdm import tqdm
 
 # Set seed for langdetect to ensure consistency
 DetectorFactory.seed = 0
-#Initiere den Spellchecker
+# Initiere den Spellchecker
 spell = SpellChecker(language="de")
 # Lade das deutsche SpaCy-Modell
 try:
@@ -42,27 +43,19 @@ def preprocess_text(text):
     text = re.sub(r'[?!]+', '.', text)
 
     # 4. Entferne alle anderen Satzzeichen außer Punkt
-    # Ersetze alle Zeichen, die keine Wortzeichen, Leerzeichen oder Punkte sind, durch nichts
-    text = re.sub(r'[^\w\s\.,\[\]@]','', text)
+    text = re.sub(r'[^\w\s\.,\[\]@]', '', text)
 
     # 5. Entferne Inhalte innerhalb von "" oder ()
-    # Falls keine schließende Klammer oder Anführungszeichen, entferne bis zum nächsten Punkt
     def remove_within(text, open_char, close_char):
-        # Escape die Zeichen für den regulären Ausdruck
         open_esc = re.escape(open_char)
         close_esc = re.escape(close_char)
-        # Regex-Muster zur Suche nach dem offenen Zeichen bis zum schließenden Zeichen oder Punkt
-        pattern = re.compile(rf'{open_esc}[^{close_char}\.]*?({close_esc}|\.)')
+        pattern = re.compile(rf'{open_esc}[^\{close_char}\.]*?(\{close_char}|\.)')
         while True:
             match = pattern.search(text)
             if not match:
                 break
             end = match.end()
-            # Ersetze den gefundenen Bereich durch einen Punkt, falls nicht bereits vorhanden
-            if match.group(1) == '.':
-                replacement = '.'
-            else:
-                replacement = ''
+            replacement = '.' if match.group(1) == '.' else ''
             text = text[:match.start()] + replacement + text[end:]
         return text
 
@@ -76,9 +69,7 @@ def preprocess_text(text):
     text = re.sub(r'\d+', '', text)
 
     # 8. Ersetze Muster wie '. .' oder '... ' durch einen einzigen Punkt
-    # Entferne Punkte, die durch Leerzeichen getrennt sind
     text = re.sub(r'\.\s*\.', '.', text)
-    # Ersetze mehrfache Punkte durch einen einzigen Punkt
     text = re.sub(r'\.{2,}', '.', text)
 
     # 9. Entferne überflüssige Leerzeichen
@@ -89,7 +80,6 @@ def preprocess_text(text):
 
     return text
 
-
 def detect_and_translate(text):
     """
     Erkennt die Sprache des Textes. Wenn es nicht Deutsch ist, übersetzt es ins Deutsche.
@@ -99,7 +89,6 @@ def detect_and_translate(text):
     try:
         lang = detect(text)
     except LangDetectException:
-        # Falls die Sprache nicht erkannt werden kann, gehe davon aus, dass es Deutsch ist
         lang = 'de'
 
     if lang != 'de':
@@ -108,15 +97,12 @@ def detect_and_translate(text):
             return translated
         except Exception as e:
             print(f"Übersetzungsfehler: {e}")
-            return text  # Rückfall auf Originaltext, falls Übersetzung fehlschlägt
+            return text
     else:
-
-        words = text.split()  # Split the sentence into words
-        misspelled = spell.unknown(words)  # Find all misspelled words in one go
-        corrections = {word: spell.correction(word) for word in misspelled}  # Get corrections for all misspelled words
-
-        # Replace misspelled words with their corrections
-        corrected_words = [corrections[word] if word in corrections and corrections[word] is not None else word for word in words]
+        words = text.split()
+        misspelled = spell.unknown(words)
+        corrections = {word: spell.correction(word) for word in misspelled}
+        corrected_words = [corrections[word] if word in corrections and corrections[word] else word for word in words]
         return ' '.join(corrected_words)
 
 def remove_adjectives(text):
@@ -132,9 +118,8 @@ def remove_adjectives(text):
 def main():
     print("Beginne mit der Vorverarbeitung der Beschreibungen...")
 
-    # 1. Lies die Datei Data.csv ein
     try:
-        df = pd.read_csv('Data/Tweets_Original.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
+        df = pd.read_csv('Data.csv', sep=';', quotechar='"', encoding='utf-8', quoting=csv.QUOTE_ALL)
     except FileNotFoundError:
         print("Die Datei 'Data.csv' wurde nicht gefunden.")
         return
@@ -142,27 +127,24 @@ def main():
         print(f"Fehler beim Einlesen der Datei: {e}")
         return
 
-    # Überprüfe, ob die notwendigen Spalten vorhanden sind
     if not {'id', 'description', 'TAR'}.issubset(df.columns):
         print("Die Eingabedatei muss die Spalten 'id', 'description' und 'TAR' enthalten.")
         return
 
-    # 2. Vorverarbeitung der Beschreibung
     print("Starte die Textvorverarbeitung...")
-    df['clean_description'] = df['description'].apply(preprocess_text)
+    tqdm.pandas(desc="Verarbeite Beschreibungen")
+    df['clean_description'] = df['description'].progress_apply(preprocess_text)
 
-
-    # 4. Speichere alles in D_verarbeitet.csv ab
-    df_verarbeitet = df[['id', 'translated_description', 'TAR']].rename(columns={'translated_description': 'description'})
+    print("Speichere vorverarbeitete Datei...")
+    df_verarbeitet = df[['id', 'description', 'TAR']].rename(columns={'description': 'translated_description'})
     try:
         df_verarbeitet.to_csv('D_verarbeitet.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
         print("D_verarbeitet.csv wurde erfolgreich gespeichert.")
     except Exception as e:
         print(f"Fehler beim Speichern von D_verarbeitet.csv: {e}")
 
-    # 5. Erstelle eine Version ohne Adjektive
     print("Erstelle eine Version ohne Adjektive...")
-    df_verarbeitet['description_oa'] = df_verarbeitet['description'].apply(remove_adjectives)
+    df_verarbeitet['description_oa'] = df_verarbeitet['translated_description'].progress_apply(remove_adjectives)
     df_verarbeitet_oa = df_verarbeitet[['id', 'description_oa', 'TAR']].rename(columns={'description_oa': 'description'})
     try:
         df_verarbeitet_oa.to_csv('D_verarbeitet_oa.csv', sep=';', quotechar='"', quoting=csv.QUOTE_ALL, index=False, encoding='utf-8')
