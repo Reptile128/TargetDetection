@@ -1,0 +1,27 @@
+Ergebnisse mit verschiedenen Thresholds:
+ single_weight  multi_weight  ngram_size  pos_context_length  top_n_similar  oversampling_factor  threshold  micro_precision  micro_recall  micro_f1  macro_precision  macro_recall  macro_f1
+           1.0           0.4          10                   2             10                    5       0.50         0.723060      0.723060  0.723060         0.670414      0.550582  0.581952
+           1.0           0.4          10                   2             10                    5       0.55         0.724567      0.724567  0.724567         0.670733      0.555646  0.586971
+           1.0           0.4          10                   2             10                    5       0.60         0.723813      0.723813  0.723813         0.665251      0.557411  0.587435
+           1.0           0.4          10                   2             10                    5       0.65         0.723813      0.723813  0.723813         0.663103      0.560847  0.590124
+           1.0           0.4          10                   2             10                    5       0.70         0.723436      0.723436  0.723436         0.661646      0.563440  0.592181
+           1.0           0.4          10                   2             10                    5       0.75         0.723813      0.723813  0.723813         0.661821      0.568134  0.596507
+           1.0           0.4          10                   2             10                    5       0.80         0.724567      0.724567  0.724567         0.660859      0.572388  0.599764
+           1.0           0.4          10                   2             10                    5       0.85         0.723436      0.723436  0.723436         0.655144      0.579101  0.604307
+           1.0           0.4          10                   2             10                    5       0.90         0.718538      0.718538  0.718538         0.642118      0.584739  0.605564
+
+Beste gefundene Kombination mit Threshold:
+single_weight           1.000000
+multi_weight            0.400000
+ngram_size             10.000000
+pos_context_length      2.000000
+top_n_similar          10.000000
+oversampling_factor     5.000000
+threshold               0.900000
+micro_precision         0.718538
+micro_recall            0.718538
+micro_f1                0.718538
+macro_precision         0.642118
+macro_recall            0.584739
+macro_f1                0.605564
+Name: 8, dtype: float64

@@ -20,20 +20,20 @@ from nltk.stem.snowball import GermanStemmer
 # Parameter-Definitionen
 ############################################################
 
-DATA_PATH = 'Data/Data_clean.csv'  # Pfad zur bereinigten Datendatei
+DATA_PATH = 'Data/D_verarbeitet_oa.csv'  # Pfad zur bereinigten Datendatei
 FAMILIENNAMEN_PATH = 'Data/Familiennamen.txt'  # Pfad zur Datei mit Familiennamen
 VORNAMEN_PATH = 'Data/Vornamen.txt'  # Pfad zur Datei mit Vornamen
 
 # Arrays zur Erprobung verschiedener Hyperparameter-Kombinationen
-TOPN_SIMILAR_VALUES = [5, 10]  # Verschiedene Werte für TOPN_SIMILAR
-SINGLE_SENT_WEIGHTS = [0.7, 1.0]  # Gewichtungen für Ein-Satz-Tweets
-MULTI_SENT_WEIGHTS = [0.3, 0.4]  # Gewichtungen für Mehr-Satz-Tweets
-CRF_NGRAM_SIZES = [3, 5]  # n-Gram-Größen für CRF-Features              #10
-POS_CONTEXT_LENGTHS = [1, 2]  # Kontextlängen für POS-Features
-OVERSAMPLING_FACTORS = [5, 10]  # Oversampling-Faktoren für CRF         #5
+TOPN_SIMILAR_VALUES = [10]  # Verschiedene Werte für TOPN_SIMILAR
+SINGLE_SENT_WEIGHTS = [1.0]  # Gewichtungen für Ein-Satz-Tweets
+MULTI_SENT_WEIGHTS = [0.4]  # Gewichtungen für Mehr-Satz-Tweets
+CRF_NGRAM_SIZES = [10]  # n-Gram-Größen für CRF-Features              #10
+POS_CONTEXT_LENGTHS = [2]  # Kontextlängen für POS-Features
+OVERSAMPLING_FACTORS = [5]  # Oversampling-Faktoren für CRF         #5
 CRF_LABELS = ['group', 'individual', 'public']  # Mögliche CRF-Labels für die Vorhersage von den Gruppen
 CHECK_NOUN_ART_PRON_ENT = True  # Flag zur Filterung von Tokens
-OUTPUT_FILE = 'ergebnisse.txt'  # Pfad zur Ausgabedatei
+OUTPUT_FILE = 'Data/ergebnisse_oa.txt'  # Pfad zur Ausgabedatei
 
 stemmer = GermanStemmer()  # Initialisierung des deutschen Stemmer
 
@@ -54,6 +54,7 @@ def read_data(data_path):
         ValueError: Wenn erforderliche Spalten fehlen.
     """
     df = pd.read_csv(data_path, delimiter=';', quotechar='"', encoding='utf-8')
+    df.rename(columns={'translated_description': 'description'}, inplace=True)
     required_columns = ['id', 'description', 'TAR']
     if not all(col in df.columns for col in required_columns):
         raise ValueError(f"Datei muss Spalten {required_columns} enthalten.")
