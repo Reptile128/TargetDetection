@@ -24,11 +24,11 @@ FAMILIENNAMEN_PATH = 'Data/Familiennamen.txt'  # Pfad zur Datei mit Familienname
 VORNAMEN_PATH = 'Data/Vornamen.txt'  # Pfad zur Datei mit Vornamen
 
 # Arrays zur Erprobung verschiedener Hyperparameter-Kombinationen
-TOPN_SIMILAR_VALUES = [0, 5]  # Verschiedene Werte für TOPN_SIMILAR
+TOPN_SIMILAR_VALUES = [0]  # Verschiedene Werte für TOPN_SIMILAR
 SINGLE_SENT_WEIGHTS = [1.0]  # Gewichtungen für Ein-Satz-Tweets
 MULTI_SENT_WEIGHTS = [0.8]  # Gewichtungen für Mehr-Satz-Tweets
 CRF_NGRAM_SIZES = [10, 15]  # n-Gram-Größen für CRF-Features
-POS_CONTEXT_LENGTHS = [3]  # Kontextlängen für POS-Features
+POS_CONTEXT_LENGTHS = [3, 5]  # Kontextlängen für POS-Features
 OVERSAMPLING_FACTORS = [1]  # Oversampling-Faktoren für CRF
 CRF_LABELS = ['group', 'individual', 'public']  # Mögliche CRF-Labels für die Vorhersage von den Gruppen
 CHECK_NOUN_ART_PRON_ENT = False  # Flag zur Filterung von Tokens
