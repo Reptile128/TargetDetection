@@ -7,7 +7,7 @@ import csv
 from spellchecker import SpellChecker
 from tqdm import tqdm
 
-# Set seed for langdetect to ensure consistency
+# Setzt den Startwert von LangDetect damit die ergebnisse konstant sind
 DetectorFactory.seed = 0
 # Initiere den Spellchecker
 spell = SpellChecker(language="de")
@@ -21,13 +21,20 @@ except OSError:
 
 def preprocess_text(text):
     """
-    Führt die folgenden Schritte zur Textvorverarbeitung durch:
+    Fuehrt die folgenden Schritte zur Textvorverarbeitung durch:
     1. Entfernt Links.
     2. Entfernt Hashtags.
     3. Ersetzt Satzzeichen gemäß den Vorgaben.
     4. Entfernt Inhalte innerhalb von Klammern und Anführungszeichen.
     5. Entfernt Enter, Tabs, Zahlen und redundante Satzzeichen.
+
+    Args:
+        text(String): Die einzelnen Eintraege der CVS Datei
+
+    Returns:
+        text(String): Die fertig verarbeiteten Eintraege
     """
+
     if pd.isnull(text):
         return ""
 
@@ -82,7 +89,13 @@ def preprocess_text(text):
 
 def detect_and_translate(text):
     """
-    Erkennt die Sprache des Textes. Wenn es nicht Deutsch ist, übersetzt es ins Deutsche.
+    Erkennt die Sprache des Textes. Wenn er nicht Deutsch ist, uebersetzt es ins Deutsche. Falls der Text bereits auf deutsch sein sollte, wird die Rechtschreibung der Woerter kontrolliert.
+
+    Args:
+        text(String): Die einzelnen Eintraege der CVS Datei
+
+    Returns:
+        text(String): Die uebersetzten oder berichtigten Eintraege
     """
     if not text:
         return text
@@ -108,6 +121,12 @@ def detect_and_translate(text):
 def remove_adjectives(text):
     """
     Entfernt alle Adjektive aus dem Text.
+
+    Args:
+        text(String): Die einzelnen Eintraege der CVS Datei
+
+    Returns:
+        text(String): Die Eintraege ohne Adjektive
     """
     if not text:
         return text

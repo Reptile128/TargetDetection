@@ -12,7 +12,6 @@ from sklearn.metrics import precision_recall_fscore_support, classification_repo
 from scipy.sparse import hstack
 from gensim.models import Word2Vec
 from joblib import Parallel, delayed
-from sklearn.linear_model import LogisticRegression
 import nltk
 from nltk.stem.snowball import GermanStemmer
 
@@ -20,23 +19,22 @@ from nltk.stem.snowball import GermanStemmer
 # Parameter-Definitionen
 ############################################################
 
-DATA_PATH = 'Data/D_verarbeitet_oa.csv'  # Pfad zur bereinigten Datendatei
+DATA_PATH = 'Data/Data_verarbeitet.csv'  # Pfad zur bereinigten Datendatei
 FAMILIENNAMEN_PATH = 'Data/Familiennamen.txt'  # Pfad zur Datei mit Familiennamen
 VORNAMEN_PATH = 'Data/Vornamen.txt'  # Pfad zur Datei mit Vornamen
 
 # Arrays zur Erprobung verschiedener Hyperparameter-Kombinationen
-TOPN_SIMILAR_VALUES = [10]  # Verschiedene Werte für TOPN_SIMILAR
+TOPN_SIMILAR_VALUES = [0]  # Verschiedene Werte für TOPN_SIMILAR
 SINGLE_SENT_WEIGHTS = [1.0]  # Gewichtungen für Ein-Satz-Tweets
-MULTI_SENT_WEIGHTS = [0.4]  # Gewichtungen für Mehr-Satz-Tweets
-CRF_NGRAM_SIZES = [10]  # n-Gram-Größen für CRF-Features              #10
-POS_CONTEXT_LENGTHS = [2]  # Kontextlängen für POS-Features
-OVERSAMPLING_FACTORS = [5]  # Oversampling-Faktoren für CRF         #5
+MULTI_SENT_WEIGHTS = [0.8]  # Gewichtungen für Mehr-Satz-Tweets
+CRF_NGRAM_SIZES = [10, 15]  # n-Gram-Größen für CRF-Features
+POS_CONTEXT_LENGTHS = [3, 5]  # Kontextlängen für POS-Features
+OVERSAMPLING_FACTORS = [1]  # Oversampling-Faktoren für CRF
 CRF_LABELS = ['group', 'individual', 'public']  # Mögliche CRF-Labels für die Vorhersage von den Gruppen
-CHECK_NOUN_ART_PRON_ENT = True  # Flag zur Filterung von Tokens
-OUTPUT_FILE = 'Data/ergebnisse_oa.txt'  # Pfad zur Ausgabedatei
+CHECK_NOUN_ART_PRON_ENT = False  # Flag zur Filterung von Tokens
+OUTPUT_FILE = 'Data/ergebnisse.txt'  # Pfad zur Ausgabedatei
 
 stemmer = GermanStemmer()  # Initialisierung des deutschen Stemmer
-
 
 ############################################################
 # Hilfsfunktionen
@@ -54,7 +52,6 @@ def read_data(data_path):
         ValueError: Wenn erforderliche Spalten fehlen.
     """
     df = pd.read_csv(data_path, delimiter=';', quotechar='"', encoding='utf-8')
-    df.rename(columns={'translated_description': 'description'}, inplace=True)
     required_columns = ['id', 'description', 'TAR']
     if not all(col in df.columns for col in required_columns):
         raise ValueError(f"Datei muss Spalten {required_columns} enthalten.")
@@ -166,9 +163,9 @@ def vectorize_and_weight(texts, sentence_counts, single_weight, multi_weight):
     Returns:
         tuple: Vektorisierter und gewichteter TF-IDF-Matrix sowie das TF-IDF-Modell.
     """
-    tfidf = TfidfVectorizer()           # Initialisiert TF-IDF-Vektoriser, um TF-IDF zu erstellen
-    X = tfidf.fit_transform(texts)      # Passt de Vektorisier an die Eingabetexte an
-    row_weights = np.array([single_weight if c == 1 else multi_weight for c in sentence_counts])    # Weißt den Daten eine Gewichtung hinzu, je nach Multi/Einzelsatz
+    tfidf = TfidfVectorizer()           # Initialisiert TF-IDF-Vektorisierer, um TF-IDF zu erstellen
+    X = tfidf.fit_transform(texts)      # Passt den Vektorisierer an die Eingabetexte an
+    row_weights = np.array([single_weight if c == 1 else multi_weight for c in sentence_counts])    # Weißt den Daten eine Gewichtung zu, je nach Satzanzahl
     X = X.multiply(row_weights[:, None])        # Gewichtet die Daten unterschiedlich stark. [:,None] notwendig um richtiges Format zu haben
     return X, tfidf
 
@@ -187,8 +184,8 @@ def transform_and_weight(tfidf, texts, sentence_counts, single_weight, multi_wei
     Returns:
         sparse matrix: Gewichtete TF-IDF-Matrix.
     """
-    X = tfidf.transform(texts)                  # transformiert die neuen Texte in die TF-IDF-Matrix
-    row_weights = np.array([single_weight if c == 1 else multi_weight for c in sentence_counts])    # Weißt den Daten eine Gewichtung hinzu, je nach Multi/Einzelsatz
+    X = tfidf.transform(texts)                  # Transformiert die neuen Texte in die TF-IDF-Matrix
+    row_weights = np.array([single_weight if c == 1 else multi_weight for c in sentence_counts])    # Weißt den Daten eine Gewichtung zu, je nach Satzanzahl
     X = X.multiply(row_weights[:, None])        # Multipliziert die Daten [:,None] notwendig um richtiges Format zu haben
     return X
 
@@ -231,7 +228,7 @@ def get_best_tfidf_similar_word(model_w2v, word, idf_all, feature_names_all, top
             best_words.append(w_sim_lower)  # Füge das Wort hinzu
             best_idfs.append(w_idf)         # Füge den IDF Wert hinzu
 
-    # Verbinde die Wörter mit ihren IDF-Werte und sortiere sie nach Relevanz (IDF-Wert)
+    # Verbinde die Wörter mit ihren IDF-Werten und sortiere sie nach Relevanz (IDF-Wert)
     sorted_words_idfs = sorted(zip(best_words, best_idfs), key=lambda x: x[1], reverse=True)
 
     return sorted_words_idfs
@@ -300,7 +297,7 @@ def stem_adj(w):
         w (str): Das Adjektiv.
 
     Returns:
-        str: Die Differenz zwischen Stamm und Orginalwort.
+        str: Die Differenz zwischen Stamm und Originalwort.
     """
     stem = stemmer.stem(w)
     if w.startswith(stem):
@@ -316,7 +313,7 @@ def stem_adj(w):
 
 def extract_np_spans(doc):
     """
-    Extrahiert Nominalphrasen (NP) aus dem SpaCy-Dokument, inkl. Pronomen und Artikeln.
+    Extrahiert Nominalphrasen (NP) aus dem SpaCy-Dokument, sowie Pronomen und Artikeln, welche nicht Teil von NP's sind.
 
     Args:
         doc (spacy.tokens.Doc): Das SpaCy-Dokument.
@@ -325,15 +322,18 @@ def extract_np_spans(doc):
         list: Liste von NPs, wobei jede NP eine Liste aus den Tupeln.
     """
     nps = []
-    # Extrahiere NPs aus den Noun-Chunks von SpaCy
-    for chunk in doc.noun_chunks:
+    # Extrahiert NPs aus den Noun-Chunks von SpaCy
+    for chunk in doc.noun_chunks:       # Iteriere durch alle NP's chunks, welche von Spacy erkannt wurden
         np_tokens = []
+        # Füge jedes Token der NP hinzu und speichere zusätzlich POS-TAG sowie NER
         for t in chunk:
             np_tokens.append((t.text.lower(), t.pos_, t.ent_type_ if t.ent_type_ else 'O'))
         nps.append(np_tokens)
 
-    # Füge Pronomen und Artikel hinzu, die nicht bereits in den Noun-Chunks enthalten sind
+    # Erstelle ein Set für bereits extrahierte für den nachfolgenden Schritt
     existing_np_words = set(w for np_chunk in nps for w, p, e in np_chunk)
+
+    # Füge die Pronomen und Artikel hinzu, die nicht bereits in den Noun-Chunks enthalten sind
     for t in doc:
         w = t.text.lower()
         p = t.pos_
@@ -341,6 +341,7 @@ def extract_np_spans(doc):
         if (p in ['PRON', 'DET']) and w not in existing_np_words:
             nps.append([(w, p, e)])
             existing_np_words.add(w)
+
     return nps
 
 
@@ -355,19 +356,20 @@ def filter_tokens_for_crf(doc_tokens, doc):
     Returns:
         list: Gefilterte Liste von Token-Tupeln.
     """
+    # Extrahiere NP's, Artikel und Pronomen aus dem Dokument
     nps = extract_np_spans(doc)
-    np_words = set(ww for np_chunk in nps for ww, pp, ee in np_chunk)
+    np_words = set(ww for np_chunk in nps for ww, pp, ee in np_chunk)   # Erstellt Menge aller Wörter, die Teil einer NP sind
 
     filtered = []
     for (w, p, isn, ent) in doc_tokens:
         if w == '.':
-            break  # Stoppt die Filterung bei einem Punkt
+            break  # Stoppt die Filterung bei einem Punkt, um es für die Sätze zu machen
         in_np = w in np_words
         if in_np:
             filtered.append((w, p, isn, ent))  # NPs immer hinzufügen
         else:
             if CHECK_NOUN_ART_PRON_ENT:
-                # Hinzufügen, wenn POS in [NOUN, DET, PRON] oder Entität vorhanden
+                # Hinzufügen, wenn POS in [NOUN, DET, PRON] oder Entität vorhanden (nur wenn auf TRUE gesetzt ist)
                 if (p in ['NOUN', 'DET', 'PRON'] or ent != 'O'):
                     filtered.append((w, p, isn, ent))
     return filtered
@@ -379,25 +381,26 @@ def ngram_tokens_overlapping(doc_tokens, n):
 
     Args:
         doc_tokens (list): Liste von Token-Tupeln (w, p, isn, ent).
-        n (int): Größe des n-Gramms.
+        n (int): Die gewünschte Größe des n-Gramms.
 
     Returns:
         list: Liste von n-Gram-Token-Tupeln.
     """
     merged = []
+    # Iteriere über die Token Liste und erstelle n-Gramme mit Überlappung
     for i in range(len(doc_tokens) - n + 1):
         chunk = doc_tokens[i:i + n]
-        w_merged = "_".join([x[0] for x in chunk])  # Zusammengesetztes Wort
-        p_first = chunk[0][1]  # POS des ersten Tokens
+        w_merged = "_".join([x[0] for x in chunk])  # Setze die Wörter mit _ zusammen
+        p_first = chunk[0][1]  # Überprüfe POS des ersten Tokens
         is_name_any = any(x[2] for x in chunk)  # Prüft, ob eines der Tokens ein Name ist
         ent_first = chunk[0][3]  # Entität des ersten Tokens
-        merged.append((w_merged, p_first, is_name_any, ent_first))
+        merged.append((w_merged, p_first, is_name_any, ent_first))  # Füge es in die Liste hinzu
     return merged
 
 
 def ner_boost_pos_text(doc_tokens):
     """
-    Erstellt einen Text mit wiederholten Wörtern, um NER-Informationen zu verstärken.
+    Verstärkt Wörter, welche mittels NER als Entity erkannt wurden (oder special Entities sind)
 
     Args:
         doc_tokens (list): Liste von Token-Tupeln (w, p, isn, ent).
@@ -406,12 +409,12 @@ def ner_boost_pos_text(doc_tokens):
         str: Verstärkter Text basierend auf POS-Tags und Entitäten.
     """
     words = []
-    for w, p, isn, ent in doc_tokens:
-        if p in ['NOUN', 'DET', 'PRON']:
-            if ent != 'O':
+    for w, p, isn, ent in doc_tokens:   # Iteriere durch die Tokens
+        if p in ['NOUN', 'DET', 'PRON']:    # Nur für Nomen/Det/Pronomen
+            if ent != 'O':                  # Wenn es eine erkannte Entity ist, dann füge es doppelt hinzu
                 words.extend([w, w])  # Wiederhole Wörter mit Entitäten
             else:
-                words.append(w)
+                words.append(w)             # Rest soll normal hinzugefügt werden
     return ' '.join(words)
 
 
@@ -430,11 +433,11 @@ def join_tokens_all(doc_tokens):
 
 def one_hot_label(lab, crf_labels):
     """
-    Wandelt ein Label in ein One-Hot-Encoded-Format um.
+    Wandelt ein Label in ein One-Hot-Encoded-Format um, sodass der Algorithmus damit umgehen kann
 
     Args:
         lab (str): Das zu kodierende Label.
-        crf_labels (list): Liste der möglichen Labels.
+        crf_labels (list): Liste der möglichen Labels, welche oben deklariert wurden
 
     Returns:
         list: One-Hot-Encoded Liste.
@@ -455,28 +458,31 @@ def oversample_for_crf(X_crf, Y_crf, sentence_counts, single_weight, multi_weigh
         oversampling_factor (int): Faktor zur Skalierung des Oversamplings.
 
     Returns:
-        tuple: Neue überabgestimmte Listen von CRF-Features und Labels.
+        tuple: Neue überabgestimmte Listen von CRF-Features und Labels (Gibt neue Liste der CRF-Features/-Labels zurück).
     """
+    # Berechnung der Wiederholungen für Ein- und Mehrsatz Beispiele. Muss mind. 1 sein.
     single_rep = max(1, int(round(single_weight * oversampling_factor)))
     multi_rep = max(1, int(round(multi_weight * oversampling_factor)))
 
     X_new = []
     Y_new = []
+    # Iteriere durch die ursprünglichen Daten
     for x_seq, y_seq, scount in zip(X_crf, Y_crf, sentence_counts):
+        # Prüfe, ob ein oder mehrere Sätze.
         if scount == 1:
-            for _ in range(single_rep):
-                X_new.append(x_seq)
-                Y_new.append(y_seq)
-        else:
+            for _ in range(single_rep):     # Füge es >1x hinzu (abhängig von Gewichtung)
+                X_new.append(x_seq)         # Füge die Sequenz hinzu
+                Y_new.append(y_seq)         # Füge das dazugehörige Label hinzu
+        else:                               # Füge es bei mehreren Sätzen >1x hinzu
             for _ in range(multi_rep):
                 X_new.append(x_seq)
                 Y_new.append(y_seq)
-    return X_new, Y_new
+    return X_new, Y_new                     # Gibt die Daten mit angepasster Gewichtung hinzu
 
 
 def get_context_features(w_index, sent_toks, pos_context_length):
     """
-    Extrahiert Kontext-Features basierend auf POS-Tags und Entitäten.
+    Extrahiert vorherige und nachfolgende Entitäten und POS-TAG-N für das CRF
 
     Args:
         w_index (int): Index des aktuellen Wortes in der Satzliste.
@@ -487,14 +493,15 @@ def get_context_features(w_index, sent_toks, pos_context_length):
         dict: Kontext-Features.
     """
     features = {}
+    # Hole die oben bestimmten X Wörter davor/danach
     for offset in range(1, pos_context_length + 1):
         # Kontext vor dem aktuellen Wort
-        if w_index - offset >= 0:
-            pw, pp, pe = sent_toks[w_index - offset]
-            features[f'-{offset}:pos'] = pp
-            features[f'-{offset}:ent'] = str(pe != 'O')
+        if w_index - offset >= 0:       # Stelle sicher, dass der Index gültig bleibt
+            pw, pp, pe = sent_toks[w_index - offset]    # Hole Token Tupel vor dem aktuellen Wort
+            features[f'-{offset}:pos'] = pp             # Speichere POS-TAG
+            features[f'-{offset}:ent'] = str(pe != 'O') # Speichere Entity
         # Kontext nach dem aktuellen Wort
-        if w_index + offset < len(sent_toks):
+        if w_index + offset < len(sent_toks):           # Nochmal dasselbe nur für Wörter danach
             nw, np_, ne = sent_toks[w_index + offset]
             features[f'+{offset}:pos'] = np_
             features[f'+{offset}:ent'] = str(ne != 'O')
@@ -504,7 +511,8 @@ def get_context_features(w_index, sent_toks, pos_context_length):
 def extract_crf_features_for_doc(doc_tokens, doc, model_w2v, idf_all, feature_names_all, pos_context_length, vornamen,
                                  nachnamen, top_n_similar):
     """
-    Extrahiert Features für das CRF-Modell aus einem Dokument.
+    Extrahiert die Features für das CRF-Modell aus einem Dokument. Tokens (Entität, Wortart), Nominalphrasen,
+    Kontext (umliegende Wörter) und word2vec
 
     Args:
         doc_tokens (list): Liste der gefilterten Token-Tupeln für das CRF.
@@ -520,44 +528,49 @@ def extract_crf_features_for_doc(doc_tokens, doc, model_w2v, idf_all, feature_na
     Returns:
         list: Liste der Feature-Dictionaries für jedes Token.
     """
+    # Extrahiert die NP's aus dem Dokument und fügt sie token2np hinzu
     nps = extract_np_spans(doc)
     token2np = {}
     for np_chunk in nps:
         for ww, pp, ee in np_chunk:
             token2np[ww] = np_chunk
 
-    sentences = list(doc.sents)
-    sents_tokens = []
-    doc_linear_tokens = []
-    for sent in sentences:
+    # Aufteilung der Tweets in einzelne Sätze.
+    saetze = list(doc.sents)         # Teilt den Text in Sätze auf
+    satz_tokens = []
+    tweet_linear_tokens = []              # Liste aller Tokens (Wort, POS, Entität)
+    for satz in saetze:
         stoks = []
-        for tt in sent:
-            w_ = tt.text.lower()
-            p_ = tt.pos_
-            e_ = tt.ent_type_ if tt.ent_type_ else 'O'
-            stoks.append((w_, p_, e_))
-            doc_linear_tokens.append((w_, p_, e_))
-        sents_tokens.append(stoks)
+        for tt in satz:
+            wort_ = tt.text.lower()
+            pos_ = tt.pos_
+            entity_ = tt.ent_type_ if tt.ent_type_ else 'O'         # Falls es keine Entity ist mache es O
+            stoks.append((wort_, pos_, entity_))
+            tweet_linear_tokens.append((wort_, pos_, entity_))
+        satz_tokens.append(stoks)
 
+    # Finden der Übereinstimmungen zwischen tweet_tokens und den Satz-Tokens
     matched_indices = []
-    used = [False] * len(doc_linear_tokens)
+    used = [False] * len(tweet_linear_tokens)
     for idx, (w, p, isn, ent) in enumerate(doc_tokens):
-        for j, (ww, wp, we) in enumerate(doc_linear_tokens):
+        for j, (ww, wp, we) in enumerate(tweet_linear_tokens):
             if not used[j] and ww == w:
-                sent_id = 0
+                satz_id = 0
                 c = 0
-                for si, st in enumerate(sents_tokens):
+                for si, st in enumerate(satz_tokens):
                     if j < c + len(st):
-                        sent_id = si
-                        w_id = j - c
+                        satz_id = si
+                        wort_id = j - c
                         break
                     c += len(st)
-                matched_indices.append((idx, sent_id, w_id))
+                matched_indices.append((idx, satz_id, wort_id))
                 used[j] = True
                 break
 
     features_list = []
+    # Iteriere durch die Tokens und extrahiere die Features
     for idx, (w, p, isn, ent) in enumerate(doc_tokens):
+        # Basis-Feature für jedes Token
         token_features = {
             'bias': 1.0,  # Bias-Feature
             'word.lower()': w,  # Kleinbuchstaben des Wortes
@@ -566,7 +579,7 @@ def extract_crf_features_for_doc(doc_tokens, doc, model_w2v, idf_all, feature_na
             'ent_type': ent  # Entitätstyp
         }
 
-        # NP-Features
+        # Prüfe, ob das Token ein NP ist und extrahiere die Merkmale
         if w in token2np:
             np_tokens = token2np[w]
             # Extrahiere Artikel
@@ -574,13 +587,13 @@ def extract_crf_features_for_doc(doc_tokens, doc, model_w2v, idf_all, feature_na
             if det_words:
                 token_features['np_det'] = '_'.join(det_words)
 
-            # Extrahiere und stemme Adjektive
+            # Extrahiere und verwende Differenz des Adjektivs
             adj_tokens = [x[0] for x in np_tokens if x[1] == 'ADJ']
             if adj_tokens:
                 stemmed_adjs = [stem_adj(a) for a in adj_tokens]
                 token_features['np_adjs_stemmed'] = '_'.join(stemmed_adjs)
 
-            # Extrahiere und stemme Nomen
+            # Extrahiere und stemme Nomen. Verwende Differenz. Mache das für alle Nomen
             noun_tokens = [x[0] for x in np_tokens if x[1] == 'NOUN']
             if noun_tokens:
                 stems = []
@@ -603,24 +616,25 @@ def extract_crf_features_for_doc(doc_tokens, doc, model_w2v, idf_all, feature_na
             if any(x[0] in vornamen or x[0] in nachnamen for x in np_tokens):
                 token_features['np_has_name'] = True
 
-        # Word2Vec-Features
+        # Word2Vec-Feature um semantisch ähnliche Wörter hinzuzufügen.
         if model_w2v is not None and idf_all is not None and feature_names_all is not None:
             w2v_feats = get_word2vec_features_nouns(model_w2v, w, idf_all, feature_names_all, p, top_n_similar)
             token_features.update(w2v_feats)
 
-        # Kontext-Features
-        sent_id = None
-        w_id = None
+        # Kontext-Features um Informationen über benachbarte Wörter zu erhalten
+        satz_id = None      # Initialisierung der Satz-ID und Wort-ID
+        wort_id = None
+        #  Überprüfe, ob der Index des aktuellen Tokens (idx) in den matched_indices ist
         for m in matched_indices:
             if m[0] == idx:
-                sent_id = m[1]
-                w_id = m[2]
-                break
-
-        if sent_id is not None and w_id is not None:
-            sent_toks = sents_tokens[sent_id]
-            c_feats = get_context_features(w_id, sent_toks, pos_context_length)
-            token_features.update(c_feats)
+                satz_id = m[1]
+                wort_id = m[2]
+                break # Wenn gefunden, beende die Suche
+        # Wenn gefunden, extrahiere die Kontext-Features
+        if satz_id is not None and wort_id is not None:
+            satz_toks = satz_tokens[satz_id] # Hole die Tokens des Satzes
+            c_feats = get_context_features(wort_id, satz_toks, pos_context_length) # Extrahiere die Kontext-Features (berücksichtigt pos_context_length)
+            token_features.update(c_feats) # Füge die Kontext-Features hinzu
 
         features_list.append(token_features)
 
@@ -659,31 +673,35 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
     test_df['is_empty'] = test_df['description'].apply(is_text_empty)
 
     # Verarbeiten des Textes mit SpaCy
+    # Wendet die Funktion 'process_text' auf jede Beschreibung an und speichert das Ergebnis als 'doc_tuple'
     train_df['doc_tuple'] = train_df['description'].apply(lambda x: process_text(x, nlp, vornamen, nachnamen))
+    # Extrahiert das SpaCy-Doc-Objekt aus 'doc_tuple'
     train_df['doc'] = train_df['doc_tuple'].apply(lambda x: x[0])
+    # Extrahiert die Token-Tupel aus dem 'doc_tuple'
     train_df['doc_tokens'] = train_df['doc_tuple'].apply(lambda x: x[1])
+    # Entfernt die temporäre Spalte 'doc_tuple'
     train_df.drop(columns=['doc_tuple'], inplace=True)
 
+    # Wiederhole den Vorgang für die Testdaten
     test_df['doc_tuple'] = test_df['description'].apply(lambda x: process_text(x, nlp, vornamen, nachnamen))
     test_df['doc'] = test_df['doc_tuple'].apply(lambda x: x[0])
     test_df['doc_tokens'] = test_df['doc_tuple'].apply(lambda x: x[1])
     test_df.drop(columns=['doc_tuple'], inplace=True)
 
     # Filtern der Tokens für das CRF-Modell
-    train_df['doc_tokens_crf'] = train_df.apply(lambda row: filter_tokens_for_crf(row['doc_tokens'], row['doc']),
-                                                axis=1)
+    train_df['doc_tokens_crf'] = train_df.apply(lambda row: filter_tokens_for_crf(row['doc_tokens'], row['doc']), axis=1)
     test_df['doc_tokens_crf'] = test_df.apply(lambda row: filter_tokens_for_crf(row['doc_tokens'], row['doc']), axis=1)
 
-    # Erzeugen von n-Grammen
-    train_df['doc_tokens_crf_ng'] = train_df['doc_tokens_crf'].apply(
-        lambda dt: ngram_tokens_overlapping(dt, NGRAM_SIZE))
+    # Erzeugen von n-Grammen, welche sich überlappen
+    train_df['doc_tokens_crf_ng'] = train_df['doc_tokens_crf'].apply(lambda dt: ngram_tokens_overlapping(dt, NGRAM_SIZE))
     test_df['doc_tokens_crf_ng'] = test_df['doc_tokens_crf'].apply(lambda dt: ngram_tokens_overlapping(dt, NGRAM_SIZE))
 
-    # Trainieren des Word2Vec-Modells
+    # Trainieren des Word2Vec-Modells mit den eigenen Tweets
     sentences = [[w for w, p, isn, ent in doc] for doc in train_df['doc_tokens_crf_ng']]
     model_w2v = Word2Vec(sentences, vector_size=100, window=5, min_count=2, workers=4, epochs=20)
 
     # Erzeugen von TF-IDF-Texten
+    # Verstärkt die Texte basierend auf POS-Tags und Entitäten, um zusätzliche syntaktische Informationen zu integrieren
     train_texts_all = train_df['doc_tokens'].apply(join_tokens_all).tolist()
     test_texts_all = test_df['doc_tokens'].apply(join_tokens_all).tolist()
 
@@ -695,32 +713,34 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
     train_sentence_counts = train_df['sentence_count'].values
     test_sentence_counts = test_df['sentence_count'].values
 
-    # Vektorisieren und Gewichtung der TF-IDF-Features
-    X_train_all, tfidf_all = vectorize_and_weight(train_texts_all, train_sentence_counts, SINGLE_SENT_WEIGHT,
-                                                  MULTI_SENT_WEIGHT)
-    X_test_all = transform_and_weight(tfidf_all, test_texts_all, test_sentence_counts, SINGLE_SENT_WEIGHT,
-                                      MULTI_SENT_WEIGHT)
+    # Vektorisieren und Gewichtung der TF-IDF-Features. Anwendung der Gewichtung basierend auf der Satzanzahl
+    X_train_all, tfidf_all = vectorize_and_weight(train_texts_all, train_sentence_counts, SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT)
+    X_test_all = transform_and_weight(tfidf_all, test_texts_all, test_sentence_counts, SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT)
 
-    X_train_pos, tfidf_pos = vectorize_and_weight(train_texts_pos, train_sentence_counts, SINGLE_SENT_WEIGHT,
-                                                  MULTI_SENT_WEIGHT)
-    X_test_pos = transform_and_weight(tfidf_pos, test_texts_pos, test_sentence_counts, SINGLE_SENT_WEIGHT,
-                                      MULTI_SENT_WEIGHT)
+    # Vektorisieren und Gewichtung der POS-TF-IDF-Features wie beim TF-IDF zuvor.
+    X_train_pos, tfidf_pos = vectorize_and_weight(train_texts_pos, train_sentence_counts, SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT)
+    X_test_pos = transform_and_weight(tfidf_pos, test_texts_pos, test_sentence_counts, SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT)
 
-    feature_names_all = np.array(tfidf_all.get_feature_names_out())  # Alle TF-IDF-Feature-Namen
-    idf_all = tfidf_all.idf_  # IDF-Werte
+    # Extrahieren der Feature-Namen und IDF-Werte aus dem TF-IDF-Modell
+    feature_names_all = np.array(tfidf_all.get_feature_names_out())
+    idf_all = tfidf_all.idf_  # Holt die IDF-Werte für jedes TF-IDF-Feature
 
-    # Extrahieren von CRF-Features und Labels
+    # Extrahieren von CRF-Features und Labels für den Trainingsdatensatz
     X_train_crf = []
     y_train_crf = []
+
+    # Hole alle CRF-Features und Labels für den Trainingsdatensatz
     for i, row in train_df.iterrows():
         feats = extract_crf_features_for_doc(
             row['doc_tokens_crf_ng'], row['doc'], model_w2v, idf_all,
             feature_names_all, POS_CONTEXT_LEN, vornamen, nachnamen, top_n_similar
         )
+        # Erstellt die Labels für jeden Token im Dokument
         labels = [row['TAR']] * len(row['doc_tokens_crf_ng'])  # Label für jedes Token
-        X_train_crf.append(feats)
-        y_train_crf.append(labels)
+        X_train_crf.append(feats)   # Füge die Features hinzu
+        y_train_crf.append(labels)  # Füge die Labels hinzu
 
+    # Dasselbe für den Testdatensatz
     X_test_crf = []
     y_test_crf = []
     for i, row in test_df.iterrows():
@@ -740,17 +760,18 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
 
     # Trainieren des CRF-Modells
     crf = CRF(
-        algorithm='lbfgs', c1=0.1, c2=0.1,
-        max_iterations=100, all_possible_transitions=True
+        algorithm='lbfgs', c1=0.1, c2=0.1,  # c1=0.1 hilft überflüssige Parameter auf Null zu setzen, c2=0.1 hilft um Overfitting zu verhindern
+        max_iterations=200, all_possible_transitions=True   # max_iterations=200 hilft um das Modell zu trainieren
     )
-    crf.fit(X_train_crf_ov, y_train_crf_ov)
+    crf.fit(X_train_crf_ov, y_train_crf_ov) # Trainiere das CRF-Modell mit den oversampelten Daten
 
     # Vorhersagen mit dem CRF-Modell
-    y_pred_crf = crf.predict(X_test_crf)
+    y_pred_crf = crf.predict(X_test_crf)    # Führt die Vorhersagen mit den Testdaten durch
+    # Extrahiere die Labels für die Vorhersagen oder setze
     y_pred_crf_tweet = [tokens[0] if len(tokens) > 0 else 'public' for tokens in y_pred_crf]
     crf_report = crf_metrics.flat_classification_report(y_test_crf, y_pred_crf, digits=4)
 
-    # Erzeugen von Word2Vec-Embeddings für die Dokumente
+    # Erzeugen von Word2Vec-Embeddings für die Dokumente. Berechnung des Durchschnitts der Word2Vec-Embeddings
     train_w2v_emb = np.array([
         np.mean(
             [model_w2v.wv[w] for w, p, i, e in doc if w in model_w2v.wv] or [np.zeros(model_w2v.wv.vector_size)],
@@ -758,6 +779,7 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
         )
         for doc in train_df['doc_tokens_crf_ng']
     ])
+    # Selbiges für den Testdatensatz
     test_w2v_emb = np.array([
         np.mean(
             [model_w2v.wv[w] for w, p, i, e in doc if w in model_w2v.wv] or [np.zeros(model_w2v.wv.vector_size)],
@@ -766,12 +788,13 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
         for doc in test_df['doc_tokens_crf_ng']
     ])
 
-    # One-Hot-Encoding der CRF-Labels
+    # One-Hot-Encoding der CRF-Labels (Umwandeln in Vektoren, sodass das Modell damit umgehen kann)
     y_train_crf_tweet = [t[0] if len(t) > 0 else 'public' for t in y_train_crf]
 
-    def ohe(l):
+    def ohe(l): # Hilfsfunktion für das One-Hot-Encoding
         return one_hot_label(l, crf_labels)
 
+    # One-Hot-Encoding für Trainings- und Testdaten
     train_crf_ohe = np.array([ohe(l) for l in y_train_crf_tweet])
     test_crf_ohe = np.array([ohe(l) for l in y_pred_crf_tweet])
 
@@ -789,11 +812,11 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
 
     # Kombinieren aller Features zu finalen Trainings- und Test-Matrizen
     X_train_final = np.hstack([
-        X_train_tfidf_combined.toarray(),
-        train_w2v_emb,
-        train_crf_ohe,
-        train_word_counts,
-        train_empty_feat
+        X_train_tfidf_combined.toarray(),   # Konvertiere die TF-IDF-Features in ein Array
+        train_w2v_emb,                      # Füge die Word2Vec-Embeddings hinzu
+        train_crf_ohe,                      # Füge die CRF-Labels hinzu
+        train_word_counts,                  # Füge die Wortanzahlen hinzu
+        train_empty_feat                    # Füge das leere Text-Flag hinzu
     ])
     X_test_final = np.hstack([
         X_test_tfidf_combined.toarray(),
@@ -803,59 +826,39 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
         test_empty_feat
     ])
 
+    # Extrahieren der Trainings- und Testlabels
     y_train = train_df['TAR'].values  # Trainingslabels
     y_test = test_df['TAR'].values  # Testlabels
 
     # Trainieren des Random Forest Klassifikators mit Grid Search
-    rf = RandomForestClassifier(class_weight='balanced', random_state=42)
+    rf = RandomForestClassifier(class_weight='balanced', random_state=42) # Random Forest Modell initialisieren mit ausgeglichenen Klassengewichtung
     param_grid = {
-        'n_estimators': [100],
-        'max_depth': [None],
-        'min_samples_split': [2]
+        'n_estimators': [100],  # Anzahl der Bäume im Wald
+        'max_depth': [None],    # Maximale Tiefe der Bäume
+        'min_samples_split': [2]    # Minimale Anzahl der Samples, die erforderlich sind, um einen Knoten zu teilen
     }
-    grid = GridSearchCV(rf, param_grid, scoring='f1_macro', cv=3)
-    grid.fit(X_train_final, y_train)
-    best_rf = grid.best_estimator_
+    # Finden der optimalen Parameter mit Grid Search
+    grid = GridSearchCV(rf, param_grid, scoring='f1_macro', cv=3) # Grid Search mit F1-Macro als Metrik und 3-facher Kreuzvalidierung
+    grid.fit(X_train_final, y_train) # Führt die GridSearch auf den Trainingsdaten durch
+    best_rf = grid.best_estimator_  # Speichert das beste Modell
 
     # Vorhersagewahrscheinlichkeiten mit dem Random Forest
-    y_train_proba = best_rf.predict_proba(X_train_final)
-    y_test_proba = best_rf.predict_proba(X_test_final)
-
-    def build_second_stage_features(proba, counts):
-        """
-        Baut Features für die zweite Modellstufe auf.
-
-        Args:
-            proba (array-like): Vorhersagewahrscheinlichkeiten.
-            counts (array-like): Satzanzahlen.
-
-        Returns:
-            array-like: Kombinierte Features.
-        """
-        return np.hstack([proba, counts.reshape(-1, 1)])
-
-    # Aufbau der Features für das zweite Modell (Logistic Regression)
-    X_train_second = build_second_stage_features(y_train_proba, train_sentence_counts)
-    X_test_second = build_second_stage_features(y_test_proba, test_sentence_counts)
-
-    # Trainieren des Logistic Regression Modells als zweite Stufe
-    lr = LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42)
-    lr.fit(X_train_second, y_train)
-    y_test_proba_lr = lr.predict_proba(X_test_second)
-    y_final = lr.predict(X_test_second)
+    y_train_proba_rf = best_rf.predict_proba(X_train_final)    # Vorhersagewahrscheinlichkeiten für Trainingsdaten
+    y_test_proba_rf = best_rf.predict_proba(X_test_final)      # Vorhersagewahrscheinlichkeiten für Testdaten
 
     # Setzen des Labels 'public', wenn der Text leer ist
-    y_final = np.where(test_df['is_empty'].values, 'public', y_final)
+    y_pred = best_rf.predict(X_test_final)
+    y_pred = np.where(test_df['is_empty'].values, 'public', y_pred)
 
     # Evaluation der Vorhersagen
     labels_eval = ['group', 'individual', 'public']
     p_micro, r_micro, f_micro, _ = precision_recall_fscore_support(
-        y_test, y_final, labels=labels_eval, average='micro'
+        y_test, y_pred, labels=labels_eval, average='micro', zero_division=0
     )
     p_macro, r_macro, f_macro, _ = precision_recall_fscore_support(
-        y_test, y_final, labels=labels_eval, average='macro'
+        y_test, y_pred, labels=labels_eval, average='macro', zero_division=0
     )
-    cls_report = classification_report(y_test, y_final, labels=labels_eval, digits=4)
+    cls_report = classification_report(y_test, y_pred, labels=labels_eval, digits=4)
 
     # Zusammenstellen der Ergebnisse
     results = {
@@ -874,9 +877,10 @@ def run_experiment(SINGLE_SENT_WEIGHT, MULTI_SENT_WEIGHT, NGRAM_SIZE, POS_CONTEX
         'cls_report': cls_report,
         'crf_report': crf_report,
         'y_test': y_test,
-        'y_test_proba_lr': y_test_proba_lr,
+        'y_pred': y_pred,
+        'y_test_proba_rf': y_test_proba_rf,  # Hinzufügen der Vorhersagewahrscheinlichkeiten
         'test_sentence_counts': test_sentence_counts,
-        'lr_classes': lr.classes_
+        'rf_classes': best_rf.classes_
     }
     return results
 
@@ -900,6 +904,10 @@ if __name__ == "__main__":
     all_results_with_threshold = []  # Liste zur Speicherung aller Ergebnisse mit Thresholds
     base_results = []  # Liste zur Speicherung der Basis-Ergebnisse
 
+    # Variablen zur Speicherung des besten Modells
+    best_model_info = None
+    best_macro_f1 = -np.inf
+
     # Schleife über alle Kombinationen der Hyperparameter
     for s_w in SINGLE_SENT_WEIGHTS:
         for m_w in MULTI_SENT_WEIGHTS:
@@ -917,20 +925,20 @@ if __name__ == "__main__":
                             base_results.append(res)
 
                             y_test = res['y_test']
-                            y_test_proba_lr = res['y_test_proba_lr']
+                            y_test_proba_rf = res['y_test_proba_rf']
                             test_sentence_counts = res['test_sentence_counts']
-                            lr_classes = res['lr_classes']
+                            rf_classes = res['rf_classes']
                             labels_eval = ['group', 'individual', 'public']
-                            pub_idx = np.where(lr_classes == 'public')[0][0]
+                            pub_idx = np.where(rf_classes == 'public')[0][0]
 
                             # Schleife über alle definierten Schwellenwerte
                             for th in thresholds:
                                 y_adjusted = []
-                                for i, (probs, count) in enumerate(zip(y_test_proba_lr, test_sentence_counts)):
+                                for i, (probs, count) in enumerate(zip(y_test_proba_rf, test_sentence_counts)):
                                     pub_proba = probs[pub_idx]
                                     if count > 1 and pub_proba < th:
                                         # Sortiere die Labels nach Wahrscheinlichkeit absteigend
-                                        sorted_labels = sorted(zip(lr_classes, probs), key=lambda x: x[1], reverse=True)
+                                        sorted_labels = sorted(zip(rf_classes, probs), key=lambda x: x[1], reverse=True)
                                         best_label, best_val = sorted_labels[0]
                                         second_label, second_val = sorted_labels[1]
 
@@ -942,19 +950,19 @@ if __name__ == "__main__":
                                         else:
                                             y_adjusted.append(best_label)
                                     else:
-                                        pred_label = lr_classes[np.argmax(probs)]
+                                        pred_label = rf_classes[np.argmax(probs)]
                                         y_adjusted.append(pred_label)
 
                                 # Berechne die Evaluationsmetriken für die angepassten Vorhersagen
                                 p_micro, r_micro, f_micro, _ = precision_recall_fscore_support(
-                                    y_test, y_adjusted, labels=labels_eval, average='micro'
+                                    y_test, y_adjusted, labels=labels_eval, average='micro', zero_division=0
                                 )
                                 p_macro, r_macro, f_macro, _ = precision_recall_fscore_support(
-                                    y_test, y_adjusted, labels=labels_eval, average='macro'
+                                    y_test, y_adjusted, labels=labels_eval, average='macro', zero_division=0
                                 )
 
                                 # Speichern der Ergebnisse mit dem aktuellen Schwellenwert
-                                all_results_with_threshold.append({
+                                result = {
                                     'single_weight': s_w,
                                     'multi_weight': m_w,
                                     'ngram_size': ngram,
@@ -968,22 +976,51 @@ if __name__ == "__main__":
                                     'macro_precision': p_macro,
                                     'macro_recall': r_macro,
                                     'macro_f1': f_macro
-                                })
+                                }
+                                all_results_with_threshold.append(result)
+
+                                # Überprüfen, ob dies das beste bisher gefundene Modell ist
+                                if f_macro > best_macro_f1:
+                                    best_macro_f1 = f_macro
+                                    best_model_info = {
+                                        'parameters': result,
+                                        'y_test': y_test,
+                                        'y_pred': y_adjusted,
+                                        'rf_classes': rf_classes
+                                    }
 
     # Erstellen eines DataFrames aus den Ergebnissen
     df_results_threshold = pd.DataFrame(all_results_with_threshold)
 
-    # Finden der besten Kombination basierend auf dem Macro F1-Score
-    best_with_threshold = df_results_threshold.loc[df_results_threshold['macro_f1'].idxmax()]
+    if best_model_info is not None:
+        # Berechnen des Klassifikationsberichts für das beste Modell
+        report = classification_report(
+            best_model_info['y_test'],
+            best_model_info['y_pred'],
+            labels=labels_eval,
+            target_names=labels_eval,
+            zero_division=0,
+            output_dict=True
+        )
 
-    # Speichern der Ergebnisse in der Ausgabedatei
-    original_stdout = sys.stdout
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        sys.stdout = f
-        print("Ergebnisse mit verschiedenen Thresholds:")
-        print(df_results_threshold.to_string(index=False))
-        print("\nBeste gefundene Kombination mit Threshold:")
-        print(best_with_threshold)
-    sys.stdout = original_stdout
+        # Konvertieren des Berichts in einen DataFrame
+        df_report = pd.DataFrame(report).transpose()
 
-    print("Ergebnisse wurden in", OUTPUT_FILE, "gespeichert.")
+        # Optional: Runden der numerischen Werte für bessere Lesbarkeit
+        df_report = df_report.round(4)
+
+        # Speichern der Ergebnisse in der Ausgabedatei
+        original_stdout = sys.stdout
+        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+            sys.stdout = f
+            print("Ergebnisse mit verschiedenen Thresholds:")
+            print(df_results_threshold.to_string(index=False))
+            print("\nBeste gefundene Kombination mit Threshold:")
+            print(best_model_info['parameters'])
+            print("\nKlassifikationsbericht des besten Modells:")
+            print(df_report.to_string())
+        sys.stdout = original_stdout
+
+        print("Ergebnisse wurden in", OUTPUT_FILE, "gespeichert.")
+    else:
+        print("Kein Modell gefunden.")
