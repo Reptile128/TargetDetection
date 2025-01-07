@@ -19,7 +19,7 @@ from nltk.stem.snowball import GermanStemmer
 # Parameter-Definitionen
 ############################################################
 
-DATA_PATH = 'Data/Data_verarbeitet.csv'  # Pfad zur bereinigten Datendatei
+DATA_PATH = 'Data/D_verarbeitet.csv'  # Pfad zur bereinigten Datendatei
 FAMILIENNAMEN_PATH = 'Data/Familiennamen.txt'  # Pfad zur Datei mit Familiennamen
 VORNAMEN_PATH = 'Data/Vornamen.txt'  # Pfad zur Datei mit Vornamen
 
